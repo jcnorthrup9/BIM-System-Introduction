@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AS244401 - System Introduction</title>
+    <style>
+        :root {
+            --bg-color: #060606;
+            --interface-bg: rgba(14, 14, 14, 0.9);
+            --accent: #00ff66;
+            --text-main: #e5e5e5;
+            --text-muted: #666666;
+            --border: #222222;
+            --alert-red: #ff453a;
+            --max-width: 720px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+        body { background-color: var(--bg-color); color: var(--text-main); overflow: hidden; height: 100vh; position: relative; }
+
+        /* Background Canvas Layer */
+        #generativeCanvas {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; pointer-events: none;
+        }
+
+        /* Act 0: Terminal Initializer */
+        #terminal-container {
+            position: absolute; z-index: 30; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center; background: var(--bg-color);
+            padding: 20px;
+        }
+        .terminal-box {
+            width: 100%; max-width: 680px; background: #0c0c0c; border: 1px solid var(--border); padding: 35px; border-radius: 6px;
+        }
+        .cursor { display: inline-block; width: 8px; height: 18px; background: var(--accent); animation: blink 1s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        .term-input-line { display: flex; margin-top: 20px; align-items: center; }
+        .term-input { background: transparent; border: none; color: var(--accent); font-family: inherit; font-size: 16px; outline: none; flex: 1; margin-left: 10px; }
+
+        /* Main Workspace Interface Framework */
+        #app-container {
+            position: relative; z-index: 10; display: none; height: 100vh; flex-direction: column; justify-content: space-between; align-items: center; padding: 30px 20px; pointer-events: none;
+        }
+
+        /* Top HUD Row */
+        .hud-header {
+            width: 100%; max-width: var(--max-width); display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); border-bottom: 1px dashed var(--border); padding-bottom: 10px; pointer-events: auto;
+        }
+
+        /* THEATRICAL TOP STAGE */
+        .top-narrative-stage {
+            width: 100%; max-width: var(--max-width); margin-top: 20px; display: flex; flex-direction: column; align-items: flex-start; min-height: 250px; pointer-events: auto;
+        }
+        
+        .act-title-tag { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; font-weight: bold; opacity: 0; transition: opacity 0.2s ease; }
+        
+        /* Proximity Reveal Sequence Layout */
+        .act-group-container { width: 100%; display: none; flex-direction: column; gap: 16px; }
+        .act-group-container.active { display: flex; }
+        
+        .qa-block-row { width: 100%; display: flex; flex-direction: column; }
+        .info-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0; }
+        .info-text { font-size: 16px; font-weight: bold; color: var(--text-main); line-height: 1.4; opacity: 0; }
+
+        /* Cue Notification Line */
+        .next-act-cue { font-size: 11px; color: var(--accent); letter-spacing: 1px; margin-top: 10px; opacity: 0; font-weight: bold; border-top: 1px dotted rgba(0, 255, 102, 0.2); padding-top: 12px; }
+
+        /* Centered Chat Bar / Control Bar Style */
+        .control-console {
+            width: 100%; max-width: var(--max-width); background: var(--interface-bg); border: 1px solid var(--border); padding: 20px 25px; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-top: auto;
+        }
+        .slider-row { margin-bottom: 15px; }
+        .slider-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--accent); margin-bottom: 10px; }
+        .param-slider { width: 100%; -webkit-appearance: none; background: #222; height: 6px; outline: none; border-radius: 3px; }
+        .param-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); cursor: pointer; border-radius: 50%; }
+        
+        .action-row { display: flex; justify-content: space-between; align-items: center; gap: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; }
+        .status-tag { font-size: 12px; color: var(--text-muted); }
+        .status-tag span { color: var(--accent); }
+        .nav-cluster { display: flex; gap: 10px; }
+        
+        .nav-btn {
+            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+            padding: 8px 20px; font-family: inherit; font-size: 12px; cursor: pointer; transition: all 0.2s; border-radius: 4px;
+        }
+        .nav-btn.unlocked { border-color: var(--accent); color: var(--accent); }
+        .nav-btn.unlocked:hover { background: var(--accent); color: var(--bg-color); font-weight: bold; }
+        .nav-btn:disabled { border-color: var(--border) !important; color: #333 !important; cursor: not-allowed; background: transparent !important; }
+
+        .export-btn {
+            background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 8px 16px; font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; border-radius: 4px; display: none; transition: all 0.2s;
+        }
+        .export-btn:hover { background: var(--accent); color: var(--bg-color); box-shadow: 0 0 10px rgba(0,255,102,0.3); }
+    </style>
+</head>
+<body>
+
+    <canvas id="generativeCanvas"></canvas>
+
+    <div id="terminal-container">
+        <div class="terminal-box">
+            <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">SYS // AS244401_BIM_IN_PRACTICE.exe</div>
+
+            <div id="terminal-output" style="color: var(--text-main); font-size: 14px; min-height: 60px;">
+                <p>WELCOME TO THE AS244401 SYSTEM INTERFACE</p>
+                <p>PLEASE VERIFY YOUR IDENTITY TO INITIALIZE SESSION </p>
+            </div>
+            <div class="term-input-line">
+                <span style="color: var(--accent);">USER_NAME:~$</span>
+                <input type="text" id="terminal-input" class="term-input" placeholder="Type your name and tap Enter..." autofocus autocomplete="off">
+                <span class="cursor" id="term-cursor"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container">
+        
+        <div class="hud-header">
+            <div>TARGET ID: NORTHRUP // JOHN</div>
+            <div id="hud-instructor">SESSION LOGGED: GUEST</div>
+        </div>
+
+        <div class="top-narrative-stage" id="narrative-stage">
+            <div class="act-title-tag" id="act-hud-title">Act I // Identity & Catalytic Systems</div>
+            
+            <div id="act-group-1" class="act-group-container active">
+                <div class="qa-block-row" id="a1-r1">
+                    <div class="info-label">What is your given or chosen name?</div>
+                    <div class="info-text">John Northrup // M.Arch 1</div>
+                </div>
+                <div class="qa-block-row" id="a1-r2">
+                    <div class="info-label">Why did you get into Architecture?</div>
+                    <div class="info-text">I've always enjoyed working with my hands and have an interest in technology and materials, architecture just sort of made sense after doing a bunch of other things.</div>
+                </div>
+                <div class="next-act-cue" id="a1-cue">>> SYSTEM TARGET RANGE ACHIEVED // ACCESS GRANTED [TAP NEXT ACT]</div>
+            </div>
+
+            <div id="act-group-2" class="act-group-container">
+                <div class="qa-block-row" id="a2-r1">
+                    <div class="info-label">What do you hope to get out of this class?</div>
+                    <div class="info-text" id="act2-revit-target">To get a better understanding of how BIM operates in a work environment, and to experiment with some more advanced techniques.</div>
+                </div>
+                <div class="qa-block-row" id="a2-r2">
+                    <div class="info-label">Who is your favorite architect, designer, or artist (or all three)?</div>
+                    <div class="info-text">Lina Bo Bardi</div>
+                </div>
+                <div class="next-act-cue" id="a2-cue">>> MATRIX CLEARANCE ALIGNED // ACCESS GRANTED [TAP NEXT ACT]</div>
+            </div>
+
+            <div id="act-group-3" class="act-group-container">
+                <div class="qa-block-row" id="a3-r1">
+                    <div class="info-label">What is your ideal job after you finish school?</div>
+                    <div class="info-text">Somewhere that i can experiment a bit and will encourage having a teaching or lecturing ability at some point.</div>
+                </div>
+                <div class="qa-block-row" id="a3-r2">
+                    <div class="info-label">Do you have any pets?</div>
+                    <div class="info-text">Mars // Red Corn Snake</div>
+                </div>
+                <div class="qa-block-row" id="a3-r3">
+                    <div class="info-label">Do you have a portfolio?</div>
+                    <div class="info-text">Yeah, but it's under construction 👷‍♂️</div>
+                </div>
+                <div class="next-act-cue" id="a3-cue">>> SWARM AUTOMATION INITIALIZED // DOSSIER READY FOR TRANSMISSION</div>
+            </div>
+        </div>
+
+        <div class="control-console">
+            <div class="slider-row">
+                <div class="slider-meta">
+                    <span id="slider-title">ALIGN CENTRIFUGAL MATRIX</span>
+                    <span id="slider-val">0%</span>
+                </div>
+                <input type="range" min="0" max="100" value="0" class="param-slider" id="puzzle-slider">
+            </div>
+            
+            <div class="action-row">
+                <div class="status-tag">System: <span id="system-status">Awaiting Verification...</span></div>
+                
+                <div class="nav-cluster">
+                    <button class="nav-btn" id="btn-prev" onclick="changeAct(-1)" disabled>PREV ACT</button>
+                    <button class="nav-btn" id="btn-next" onclick="changeAct(1)" disabled>NEXT ACT</button>
+                    <button class="export-btn" id="export-btn" onclick="triggerReset()">END SESSION</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentAct = 1;
+        let act1Unlocked = false, act2Unlocked = false, act3Unlocked = false;
+        let isRebounding = false;
+        let marsIsBorn = false; 
+
+        const actTitles = {
+            1: "Act I // Identity & Catalytic Systems",
+            2: "Act II // System Targets & Precedents",
+            3: "Act III // Speculations & Companions"
+        };
+
+        const slider = document.getElementById('puzzle-slider');
+        const sliderValDisplay = document.getElementById('slider-val');
+        const systemStatusDisplay = document.getElementById('system-status');
+        let sliderValues = { 1: 0, 2: 0, 3: 0 };
+
+        // Mechanical Engine Particle System Stack
+        let particles = [];
+        function createExplosion(x, y) {
+            for (let i = 0; i < 35; i++) {
+                let spreadX = (Math.random() - 0.5) * 110; 
+                particles.push({
+                    x: x + spreadX,
+                    y: y + (Math.random() - 0.5) * 20,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4 + 2, 
+                    radius: Math.random() * 4 + 1.5,
+                    alpha: 1,
+                    color: Math.random() > 0.3 ? 'var(--alert-red)' : '#ff9500'
+                });
+            }
+        }
+
+        // Mechanical Force Feedback: Drives slider value down smoothly to 0%
+        function triggerPistonRebound() {
+            if (isRebounding) return;
+            isRebounding = true;
+            slider.disabled = true; 
+
+            // Act II Overload: Append the custom Revit phrase dynamically
+            document.getElementById('act2-revit-target').innerText = "To get a better understanding of how BIM operates in a work environment, and to experiment with some more advanced techniques. and to get better at Revit";
+
+            function stepDown() {
+                let currentVal = sliderValues[2];
+                if (currentVal > 0) {
+                    let drop = Math.ceil(currentVal * 0.12);
+                    sliderValues[2] = Math.max(0, currentVal - drop);
+                    slider.value = sliderValues[2];
+                    sliderValDisplay.innerText = slider.value + "%";
+                    
+                    evaluateProximityReveal(sliderValues[2]);
+                    updateNavigationButtons();
+                    requestAnimationFrame(stepDown);
+                } else {
+                    isRebounding = false;
+                    slider.disabled = false;
+                }
+            }
+            stepDown();
+        }
+
+        // Terminal Login Core Hook
+        const termInput = document.getElementById('terminal-input');
+        const termOutput = document.getElementById('terminal-output');
+        
+        termInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const userName = termInput.value.trim() || 'GUEST';
+                termOutput.innerHTML += `<p style="color: var(--accent); margin-top:6px;">> INITIALIZING SESSION FILE FOR: ${userName.toUpperCase()}...</p>`;
+                document.getElementById('hud-instructor').innerText = `SESSION LOGGED: ${userName.toUpperCase()}`;
+                
+                setTimeout(() => {
+                    document.getElementById('terminal-container').style.display = 'none';
+                    document.getElementById('app-container').style.display = 'flex';
+                    resizeCanvas();
+                    initActState();
+                    animate();
+                }, 900);
+            }
+        });
+
+        function initActState() {
+            const headerTitle = document.getElementById('act-hud-title');
+            headerTitle.innerText = actTitles[currentAct];
+            headerTitle.style.opacity = 0; 
+            
+            slider.value = sliderValues[currentAct];
+            sliderValDisplay.innerText = slider.value + "%";
+
+            document.querySelectorAll('.act-group-container').forEach(g => g.classList.remove('active'));
+            document.getElementById(`act-group-${currentAct}`).classList.add('active');
+
+            const sliderTitle = document.getElementById('slider-title');
+            if(currentAct === 1) sliderTitle.innerText = "ALIGN CENTRIFUGAL MATRIX";
+            else if(currentAct === 2) sliderTitle.innerText = "CALIBRATE COMPRESSION CLEARANCE";
+            else if(currentAct === 3) sliderTitle.innerText = "INITIALIZE AGENT AUTOMATION SWARM";
+
+            evaluateProximityReveal(parseInt(slider.value));
+            updateNavigationButtons();
+        }
+
+        function changeAct(dir) {
+            currentAct += dir;
+            initActState();
+        }
+
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('btn-prev');
+            const nextBtn = document.getElementById('btn-next');
+            const expBtn = document.getElementById('export-btn');
+
+            prevBtn.disabled = (currentAct === 1);
+            
+            let isCurrentUnlocked = false;
+            if(currentAct === 1) isCurrentUnlocked = act1Unlocked;
+            if(currentAct === 2) isCurrentUnlocked = act2Unlocked;
+            if(currentAct === 3) isCurrentUnlocked = act3Unlocked;
+
+            if(isCurrentUnlocked) {
+                nextBtn.disabled = (currentAct === 3);
+                nextBtn.classList.add('unlocked');
+                systemStatusDisplay.innerHTML = "<span>Aligned & Locked</span>";
+                if(currentAct === 3) {
+                    expBtn.style.display = 'block';
+                    nextBtn.style.display = 'none';
+                } else {
+                    expBtn.style.display = 'none';
+                    nextBtn.style.display = 'block';
+                }
+            } else {
+                nextBtn.disabled = true;
+                nextBtn.classList.remove('unlocked');
+                systemStatusDisplay.innerText = isRebounding ? "Combustion Failure" : "System Offset Error";
+                expBtn.style.display = 'none';
+                nextBtn.style.display = 'block';
+            }
+        }
+
+        function getLinearOpacity(val, start, end) {
+            if (val < start) return 0;
+            if (val > end) return 1;
+            return (val - start) / (end - start);
+        }
+
+        function evaluateProximityReveal(val) {
+            const actHeader = document.getElementById('act-hud-title');
+            
+            if (currentAct === 1) {
+                actHeader.style.opacity = getLinearOpacity(val, 0, 15);
+                
+                const r1 = document.getElementById('a1-r1');
+                r1.querySelector('.info-label').style.opacity = getLinearOpacity(val, 15, 30);
+                r1.querySelector('.info-text').style.opacity  = getLinearOpacity(val, 30, 45);
+                
+                const r2 = document.getElementById('a1-r2');
+                r2.querySelector('.info-label').style.opacity = getLinearOpacity(val, 45, 58);
+                r2.querySelector('.info-text').style.opacity  = getLinearOpacity(val, 58, 71);
+
+                document.getElementById('a1-cue').style.opacity = (val === 71) ? 1 : 0;
+            } 
+            else if (currentAct === 2) {
+                if (val >= 47 || act2Unlocked) {
+                    actHeader.style.opacity = 1;
+                    
+                    const r1 = document.getElementById('a2-r1');
+                    const r2 = document.getElementById('a2-r2');
+                    
+                    r1.querySelector('.info-label').style.opacity = 1;
+                    r1.querySelector('.info-text').style.opacity  = 1;
+                    r2.querySelector('.info-label').style.opacity = 1;
+                    r2.querySelector('.info-text').style.opacity  = 1;
+
+                    document.getElementById('a2-cue').style.opacity = 1;
+                } else {
+                    actHeader.style.opacity = getLinearOpacity(val, 0, 20);
+                    document.getElementById(`act-group-2`).querySelectorAll('.info-label, .info-text').forEach(el => el.style.opacity = 0);
+                    document.getElementById('a2-cue').style.opacity = 0;
+                }
+            } 
+            else if (currentAct === 3) {
+                actHeader.style.opacity = getLinearOpacity(val, 40, 46);
+                
+                const r1 = document.getElementById('a3-r1');
+                r1.querySelector('.info-label').style.opacity = getLinearOpacity(val, 46, 52);
+                r1.querySelector('.info-text').style.opacity  = getLinearOpacity(val, 52, 58);
+                
+                const r2 = document.getElementById('a3-r2');
+                r2.querySelector('.info-label').style.opacity = getLinearOpacity(val, 58, 64);
+                r2.querySelector('.info-text').style.opacity  = getLinearOpacity(val, 64, 70);
+                
+                const r3 = document.getElementById('a3-r3');
+                r3.querySelector('.info-label').style.opacity = getLinearOpacity(val, 70, 76);
+                r3.querySelector('.info-text').style.opacity  = getLinearOpacity(val, 76, 82);
+
+                document.getElementById('a3-cue').style.opacity = (val >= 90) ? 1 : 0;
+            }
+        }
+
+        slider.addEventListener('input', function() {
+            let val = parseInt(slider.value);
+            sliderValues[currentAct] = val;
+            sliderValDisplay.innerText = val + "%";
+
+            if(currentAct === 1) {
+                act1Unlocked = (val === 71);
+            }
+            else if(currentAct === 2) {
+                if(val > 71) {
+                    const cx = window.innerWidth / 2;
+                    const cy = window.innerHeight / 2;
+                    let travelY = 30 - (val * 2);
+                    createExplosion(cx, cy + 20 + travelY);
+                    triggerPistonRebound();
+                    return;
+                }
+                if (val >= 47 && val <= 53) {
+                    act2Unlocked = true; 
+                }
+            }
+            else if(currentAct === 3) {
+                if(val >= 58) {
+                    marsIsBorn = true;
+                }
+                act3Unlocked = (val >= 90);
+            }
+
+            evaluateProximityReveal(val);
+            updateNavigationButtons();
+        });
+
+        // Background Vector Canvas Rendering Plane
+        const canvas = document.getElementById('generativeCanvas');
+        const ctx = canvas.getContext('2d');
+        let angle = 0;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Snake Kinematics Arrays
+        let snakePoints = [];
+        for(let i=0; i<16; i++) snakePoints.push({x: window.innerWidth/2, y: window.innerHeight/2});
+
+        // Discreet Fragment Array for Act III Morph Sequence
+        let scatteredNodes = [];
+        for(let i=0; i<28; i++) {
+            scatteredNodes.push({
+                baseX: (Math.random() * 0.4 + 0.3), 
+                baseY: (Math.random() * 0.3 + 0.35),
+                seed: Math.random() * 100
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            angle += 0.008;
+
+            const cx = window.innerWidth / 2;
+            const cy = window.innerHeight / 2;
+            let currentVal = sliderValues[currentAct];
+
+            // Render Fullscreen Vector Blueprint Grid
+            ctx.strokeStyle = '#111111';
+            ctx.lineWidth = 1;
+            for(let x=0; x<canvas.width; x+=60) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y=0; y<canvas.height; y+=60) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // ACT I: Centrifugal Vector Rings
+            if(currentAct === 1) {
+                ctx.lineWidth = 1.5;
+                let count = 6;
+                let isExactly71 = (currentVal === 71);
+                
+                for(let i=0; i<count; i++) {
+                    let size = 120 + i * 45;
+                    let speedShift = (currentVal - 71) * (0.04 * (i + 1));
+                    
+                    ctx.save();
+                    ctx.translate(cx, cy + 40); 
+                    ctx.rotate(speedShift + (angle * 0.05));
+                    
+                    ctx.strokeStyle = isExactly71 ? 'rgba(0, 255, 102, 0.55)' : `rgba(60, 60, 60, ${0.2 + (i*0.12)})`;
+                    ctx.strokeRect(-size/2, -size/2, size, size);
+                    ctx.restore();
+                }
+            } 
+            // ACT II: Compression Mechanical Cylinder Engine
+            else if(currentAct === 2) {
+                ctx.save();
+                ctx.translate(cx, cy + 20);
+
+                ctx.strokeStyle = isRebounding ? 'var(--alert-red)' : '#1a1a1a';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-70, -130, 140, 220);
+
+                let travelY = 30 - (currentVal * 2);
+                
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, 90);
+                ctx.lineTo(0, travelY + 35);
+                ctx.stroke();
+
+                ctx.fillStyle = (sliderValues[2] >= 47 && sliderValues[2] <= 53) ? 'rgba(0,255,102,0.15)' : (isRebounding ? 'rgba(255,69,58,0.08)' : '#1a1a1a');
+                ctx.strokeStyle = (sliderValues[2] >= 47 && sliderValues[2] <= 53) ? 'var(--accent)' : (isRebounding ? 'var(--alert-red)' : '#444444');
+                ctx.lineWidth = 2;
+                ctx.fillRect(-65, travelY, 130, 55);
+                ctx.strokeRect(-65, travelY, 130, 55);
+
+                ctx.strokeStyle = (sliderValues[2] >= 47 && sliderValues[2] <= 53) ? 'var(--accent)' : 'var(--alert-red)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-90, -70); ctx.lineTo(-70, -70);
+                ctx.moveTo(90, -70);  ctx.lineTo(70, -70);
+                ctx.stroke();
+
+                ctx.restore();
+            } 
+            // ACT III: Discrete Fragment Morph Array
+            else if(currentAct === 3) {
+                if(!marsIsBorn) {
+                    let gatherFactor = currentVal / 75; 
+                    ctx.strokeStyle = 'rgba(50,50,50,0.2)';
+
+                    scatteredNodes.forEach((node, idx) => {
+                        let startX = canvas.width * node.baseX + Math.sin(angle + node.seed) * 40;
+                        let startY = canvas.height * node.baseY + Math.cos(angle + node.seed) * 40;
+                        
+                        let targetX = cx + Math.sin(angle * 2.2) * 50;
+                        let targetY = cy + 40 + Math.cos(angle * 1.4) * 50;
+
+                        let currentX = startX + (targetX - startX) * Math.min(1, gatherFactor);
+                        let currentY = startY + (targetY - startY) * Math.min(1, gatherFactor);
+
+                        if (gatherFactor > 0.65) {
+                            ctx.fillStyle = 'var(--alert-red)';
+                        } else {
+                            ctx.fillStyle = '#444444';
+                        }
+
+                        ctx.beginPath();
+                        ctx.arc(currentX, currentY, 4, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        if(gatherFactor > 0.3) {
+                            ctx.beginPath(); ctx.moveTo(currentX, currentY); ctx.lineTo(targetX, targetY); ctx.stroke();
+                        }
+                    });
+                }
+            }
+
+            // GLOBAL PERSISTENT SNAKE PATH ENGINE
+            if(marsIsBorn) {
+                let sTargetX = cx + Math.sin(angle * 2.2) * 200;
+                let sTargetY = (cy + 40) + Math.cos(angle * 1.4) * 160;
+
+                snakePoints[0].x += (sTargetX - snakePoints[0].x) * 0.07;
+                snakePoints[0].y += (sTargetY - snakePoints[0].y) * 0.07;
+
+                for(let i = 1; i < snakePoints.length; i++) {
+                    let dx = snakePoints[i-1].x - snakePoints[i].x;
+                    let dy = snakePoints[i-1].y - snakePoints[i].y;
+                    snakePoints[i].x += dx * 0.38;
+                    snakePoints[i].y += dy * 0.38;
+                }
+
+                ctx.strokeStyle = '#ff453a';
+                ctx.lineWidth = 7;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(snakePoints[0].x, snakePoints[0].y);
+                for(let i=1; i<snakePoints.length; i++) ctx.lineTo(snakePoints[i].x, snakePoints[i].y);
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(snakePoints[0].x - 2, snakePoints[0].y - 1, 1.5, 0, Math.PI*2); ctx.fill();
+            }
+
+            // Render Engine Sparks Pipeline Array Loops
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.028; 
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Global Application State Hard Reset Engine
+        function triggerReset() {
+            // Clear logical locks
+            act1Unlocked = false;
+            act2Unlocked = false;
+            act3Unlocked = false;
+            marsIsBorn = false;
+            isRebounding = false;
+            
+            // Wipe variable history arrays
+            sliderValues = { 1: 0, 2: 0, 3: 0 };
+            particles = [];
+            
+            // Revert dynamically altered DOM content blocks back to base state
+            document.getElementById('act2-revit-target').innerText = "To get a better understanding of how BIM operates in a work environment, and to experiment with some more advanced techniques.";
+            
+            // Fall back to Act I as current focus container
+            currentAct = 1;
+
+            // Flip panel visibility layout tracks
+            document.getElementById('app-container').style.display = 'none';
+            
+            const terminalContainer = document.getElementById('terminal-container');
+            terminalContainer.style.display = 'flex';
+            
+            // Wipe prior input and spin up verification prompt
+            termInput.value = '';
+            termOutput.innerHTML = `
+                <p>WELCOME TO THE AS244401 SYSTEM INTERFACE</p>
+                <p>PLEASE VERIFY YOUR IDENTITY TO INITIALIZE SESSION </p>
+            `;
+            
+            // Snap focus back to field instantly
+            termInput.focus();
+        }
+    </script>
+</body>
+</html>
